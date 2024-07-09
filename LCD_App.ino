@@ -1,12 +1,21 @@
 #include <TFT_eSPI.h>  // Include the TFT_eSPI library
 #define ENCODER_DO_NOT_USE_INTERRUPTS
 #include <Encoder.h>
+#include <esp_sleep.h>
+#include <ezButton.h>
+#define BUTTON_PIN 14
+#define DEEPSLEEP_DURATION 4  // Time in seconds to hold the button for sleep
+
+ezButton button(14);  // create ezButton object that attach to pin 7;
 
 Encoder myEnc(13, 12);
 TFT_eSPI tft = TFT_eSPI();  // Create an instance of the TFT_eSPI library
 
 const int numOptions = 5;  // Number of menu options
+int currentNumOptions = numOptions;  // Number of menu options
 const char *options[numOptions] = {"Sambungkan ke HP", "Kalibrasi Blanko", "Pengukuran Sampel", "Profil", "Tentang"};
+const int Halaman1 = 3;  // Number of menu options
+const char *pilihan[Halaman1] = {""};
 
 // Define icons as bitmaps (monochrome bitmaps)
 // These are placeholders; you need to generate your own monochrome bitmaps for each icon
@@ -19,9 +28,14 @@ const unsigned char iconAbout[] = { /* Your About icon bitmap data */ };
 const unsigned char *icons[numOptions] = {iconBluetooth, iconCalibration, iconSample, iconProfile, iconAbout};
 
 int selectedOption = 0;  // Index of the currently highlighted option
+unsigned long buttonPressStart = 0;
+bool buttonHeld = false;
+bool onMainMenu = true;
+bool MasukHal;
 
 void setup() {
   Serial.begin(9600); // Initialize serial for debugging
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
 
   tft.init();
   tft.setRotation(1);  // Set horizontal orientation
@@ -32,14 +46,70 @@ void setup() {
 long position = -999;
 
 void loop() {
-  long newPos = myEnc.read() / 2;
-  if (newPos != position) {
-    position = newPos;
-    selectedOption = position % numOptions;
-    if (selectedOption < 0) selectedOption += numOptions;
-    drawMenu();  // Update the menu only when the position changes
+  button.loop();
+  if(button.getState() == 0) {
+    MasukHal = true;
   }
-  Serial.println(selectedOption);
+  if (onMainMenu) {
+    // Handle encoder
+    long newPos = myEnc.read() / 2;
+    if (newPos != position) {
+      position = newPos;
+      selectedOption = (position % currentNumOptions + currentNumOptions) % currentNumOptions;  // Ensure positive index
+      drawMenu();  // Update the menu only when the position changes
+    }
+    Serial.println(selectedOption);
+
+
+  }
+      if(selectedOption == 0 && MasukHal == true){
+      currentNumOptions = 3;
+      displaySambungkanKeHP();
+    }
+  // // Handle button press for sleep and navigation
+  // if (digitalRead(BUTTON_PIN) == LOW) {
+  //   if (!buttonHeld) {
+  //     buttonPressStart = millis();
+  //     buttonHeld = true;
+  //   } else if (millis() - buttonPressStart >= DEEPSLEEP_DURATION * 1000) {
+  //     // Put the ESP32 into light sleep
+  //     Serial.println("Entering light sleep...");
+  //     tft.fillScreen(TFT_BLACK);
+  //     tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  //     tft.drawString("Entering light sleep...", 60, 120, 2);
+  //     delay(1000);  // Show the message for 1 second before sleeping
+
+  //     enterLightSleep();
+  //   }
+  // } else {
+  //   if (buttonHeld) {
+  //     if (onMainMenu) {
+  //       // Call the appropriate function based on the selected option
+  //       switch (selectedOption) {
+  //         case 0:
+  //           displaySambungkanKeHP();
+  //           break;
+  //         case 1:
+  //           displayKalibrasiBlanko();
+  //           break;
+  //         case 2:
+  //           displayPengukuranSampel();
+  //           break;
+  //         case 3:
+  //           displayProfil();
+  //           break;
+  //         case 4:
+  //           displayTentang();
+  //           break;
+  //       }
+  //       onMainMenu = false;
+  //     } else {
+  //       drawMenu();
+  //       onMainMenu = true;
+  //     }
+  //   }
+  //   buttonHeld = false;
+  // }
 }
 
 void drawMenu() {
@@ -77,4 +147,47 @@ void drawMenu() {
     // Draw the text
     tft.drawString(options[displayIdx], 50, 80 + i * 40, 2);  // Draw each option, spaced vertically
   }
+}
+
+
+
+void displaySambungkanKeHP() {
+    tft.drawString("Menuuu", 50, 40, 2);  // Draw each option, spaced vertically
+}
+
+
+void displayKalibrasiBlanko() {
+  tft.fillScreen(TFT_WHITE);  // Clear the screen with white
+  tft.setTextColor(TFT_BLACK);
+  tft.setTextDatum(MC_DATUM);
+  tft.drawString("Kalibrasi Blanko", 160, 50, 4);
+  tft.drawString("Dummy content for Calibration", 160, 100, 2);
+  // Add more UI elements for this page as needed
+}
+
+void displayPengukuranSampel() {
+  tft.fillScreen(TFT_WHITE);  // Clear the screen with white
+  tft.setTextColor(TFT_BLACK);
+  tft.setTextDatum(MC_DATUM);
+  tft.drawString("Pengukuran Sampel", 160, 50, 4);
+  tft.drawString("Dummy content for Sample", 160, 100, 2);
+  // Add more UI elements for this page as needed
+}
+
+void displayProfil() {
+  tft.fillScreen(TFT_WHITE);  // Clear the screen with white
+  tft.setTextColor(TFT_BLACK);
+  tft.setTextDatum(MC_DATUM);
+  tft.drawString("Profil", 160, 50, 4);
+  tft.drawString("Dummy content for Profile", 160, 100, 2);
+  // Add more UI elements for this page as needed
+}
+
+void displayTentang() {
+  tft.fillScreen(TFT_WHITE);  // Clear the screen with white
+  tft.setTextColor(TFT_BLACK);
+  tft.setTextDatum(MC_DATUM);
+  tft.drawString("Tentang", 160, 50, 4);
+  tft.drawString("Dummy content for About", 160, 100, 2);
+  // Add more UI elements for this page as needed
 }
